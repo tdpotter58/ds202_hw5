@@ -1,0 +1,78 @@
+---
+title: "Homework 5"
+author: "Tim Potter"
+date: "April 10, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(plotly)
+
+```
+
+## Homework 5
+
+```{r load}
+if (file.exists("alcohol.rds")) {
+  data <- readRDS("alcohol.rds")
+} else {
+  url <- "https://xdaiisu.github.io/ds202materials/data/ames.csv"
+  data <- readr::read_csv(url)
+  saveRDS(data, file="alcohol.rds")
+} 
+str(data)
+```
+
+## Data Cleaning
+
+```{r cleaning}
+data_clean <- data %>%
+  separate('Store Location', c("Address", "City", "Coordinates"), sep = "\n") %>%
+  mutate(Coordinates = gsub("[()]", "", Coordinates)) %>%
+  separate("Coordinates", c("Latitude", "Longitude"), sep = ",")
+
+data_clean <- data_clean %>%
+  rename(Volume_Sold_Liters = `Volume Sold (Liters)`) %>%
+  mutate(`Store Name` = factor(`Store Name`),
+         `Invoice/Item Number` = factor(`Invoice/Item Number`),
+         `Vendor Number` = as.numeric(`Vendor Number`),
+         `Category Name` = factor(`Category Name`),
+         Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude),
+         Date = mdy(Date),
+         Day = day(Date),
+         Month = month(Date),
+         Year = year(Date))
+
+data_clean <- na.omit(data_clean)
+str(data_clean)
+```
+
+## First Overview
+
+```{r graphing}
+ggplot(data_clean, aes(x = Latitude, y = Longitude)) + geom_point()
+data_clean %>%
+  group_by(`Category Name`) %>%
+  ggplot(aes(x = `Category Name`, y = Volume_Sold_Liters)) + geom_col()
+
+
+data_clean_2018 <- data_clean %>%
+  filter(Year == 2018)
+
+data_clean_2018 %>%
+  group_by(Month, Day) %>%
+  summarize(Sales = sum(`Bottles Sold`), Volume_Sold = sum(Volume_Sold_Liters), Total_Sale = sum(`Sale (Dollars)`))
+
+data_clean_2018 %>%
+  group_by(Month, Day) %>%
+  mutate(Volume_Sold_Per_Day = sum(Volume_Sold_Liters)) %>%
+  ggplot(aes(x = Day, y = Volume_Sold_Per_Day)) + geom_point() + facet_wrap(~Month)
+```
+
+The pattern here is the total sale of alcohol spikes about once a week. This probably coincides with the weekend.
